@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FHIR Response Formatter</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"> 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+    <style>
+        body {
+            background: #f2f2f2;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .header i {
+            color: #20c997;
+            font-size: 1.5rem;
+            margin-right: 10px;
+        }
+
+        .header h2 {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        label {
+            font-weight: 600;
+        }
+
+        .form-control {
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        #formatBtn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        #output {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            overflow-y: auto;
+            font-family: monospace;
+            max-height: 400px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .output-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        .output-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .btn {
+            transition: background-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .btn:hover {
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+
+        /* JSON Syntax Highlighting */
+        .string { color: #0284c7; } 
+        .number { color: #d97706; }
+        .boolean { color: #059669; }
+        .null { color: #6b7280; font-style: italic; }
+        .key { color: #6d28d9; }
+        .error { color: #dc2626; font-weight: bold; }
+        .warning { color: #d97706; font-weight: bold; }
+        .information { color: #0ea5e9; font-weight: bold; }
+        .resourceTypeValue { color: #9333ea; font-weight: bold; }
+
+        /* Spinner for loading feedback */
+        .spinner-border {
+            width: 1rem;
+            height: 1rem;
+            border-width: 2px;
+            margin-left: 5px;
+        }
+
+        /* Smooth scroll highlight */
+        @keyframes highlight {
+            0% { background-color: yellow; }
+            100% { background-color: transparent; }
+        }
+
+        /* Legend styling */
+        .legend {
+            margin-top: 20px;
+            background: #ffffff;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .legend h5 {
+            margin-bottom: 10px;
+        }
+
+        .legend-item {
+            margin-bottom: 5px;
+            font-family: Arial, sans-serif;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <i class="fas fa-stethoscope"></i>
+        <h2>FHIR Response Formatter</h2>
+    </div>
+
+    <div class="form-group">
+        <label for="inputData">Paste your FHIR response JSON here:</label>
+        <textarea class="form-control" id="inputData" rows="10" placeholder="Paste FHIR JSON response..."></textarea>
+    </div>
+    <button id="formatBtn" class="btn btn-primary">
+        <i class="fas fa-cogs"></i> Format JSON
+    </button>
+    <span id="loadingIndicator" class="ml-2"></span>
+
+    <div class="output-header">
+        <label for="output" class="mt-4">Formatted Output:</label>
+        <div class="output-buttons" id="buttonsContainer">
+            <button class="btn btn-secondary" id="copyBtn">
+                <i class="fas fa-copy"></i> Copy
+            </button>
+        </div>
+    </div>
+    <div id="output" class="mt-2"></div>
+
+    <!-- Legend & Guide -->
+    <div class="legend mt-4">
+        <h5>Legend & Guide</h5>
+        <div class="legend-item"><strong>Keys:</strong> <span class="key">"key"</span></div>
+        <div class="legend-item"><strong>Strings:</strong> <span class="string">"value"</span></div>
+        <div class="legend-item"><strong>Numbers:</strong> <span class="number">123</span></div>
+        <div class="legend-item"><strong>Booleans:</strong> <span class="boolean">true</span> / <span class="boolean">false</span></div>
+        <div class="legend-item"><strong>null:</strong> <span class="null">null</span></div>
+        <div class="legend-item"><strong>Resource Types:</strong> <span class="resourceTypeValue">"Patient"</span></div>
+        <div class="legend-item"><strong>Errors:</strong> <span class="error">"error"</span></div>
+        <div class="legend-item"><strong>Warnings:</strong> <span class="warning">"warning"</span></div>
+        <div class="legend-item"><strong>Information:</strong> <span class="information">"information"</span></div>
+    </div>
+</div>
+
+<!-- Bootstrap JS and dependencies -->
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+<script>
+// Variables to keep track of elements
+let errorElements = [];
+let warningElements = [];
+let resourceTypeElements = [];
+let errorIndex = 0;
+let warningIndex = 0;
+let resourceIndex = 0;
+let resourceTypeInstances = {};
+let resourceTypeIndices = {};
+
+const formatBtn = document.getElementById('formatBtn');
+const loadingIndicator = document.getElementById('loadingIndicator');
+
+formatBtn.addEventListener('click', function() {
+    const input = document.getElementById('inputData').value;
+    const outputDiv = document.getElementById('output');
+    const buttonsContainer = document.getElementById('buttonsContainer');
+    outputDiv.innerHTML = ''; // Clear previous output
+
+    // Remove previous buttons except copy button
+    const buttonsToRemove = buttonsContainer.querySelectorAll('.dynamic-btn');
+    buttonsToRemove.forEach(btn => btn.remove());
+
+    // Reset elements arrays and indices
+    errorElements = [];
+    warningElements = [];
+    resourceTypeElements = [];
+    errorIndex = 0;
+    warningIndex = 0;
+    resourceIndex = 0;
+    resourceTypeInstances = {};
+    resourceTypeIndices = {};
+
+    // Show loading spinner
+    formatBtn.disabled = true;
+    loadingIndicator.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="sr-only">Loading...</span></div>';
+
+    setTimeout(() => {
+        try {
+            let cleanedInput = cleanInput(input);
+            let jsonData = JSON.parse(cleanedInput);
+            let prettyJson = jsonToHtml(jsonData);
+            outputDiv.innerHTML = prettyJson;
+
+            // Collect error and warning elements
+            errorElements = outputDiv.querySelectorAll('.error');
+            warningElements = outputDiv.querySelectorAll('.warning');
+
+            // Collect all resourceType elements
+            let resourceTypeSpans = outputDiv.querySelectorAll('.resourceTypeValue');
+            resourceTypeSpans.forEach(span => {
+                let resourceType = span.getAttribute('data-resource-type');
+                resourceTypeElements.push(span);
+
+                // For individual resource type buttons
+                if (resourceType) {
+                    if (!resourceTypeInstances[resourceType]) {
+                        resourceTypeInstances[resourceType] = [];
+                        resourceTypeIndices[resourceType] = 0;
+                    }
+                    resourceTypeInstances[resourceType].push(span);
+                }
+            });
+
+            // Create Error button if errors are present
+            if (errorElements.length > 0) {
+                let errorBtn = document.createElement('button');
+                errorBtn.className = 'btn btn-danger dynamic-btn';
+                errorBtn.id = 'errorBtn';
+                errorBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error';
+                errorBtn.addEventListener('click', navigateErrors);
+                buttonsContainer.insertBefore(errorBtn, document.getElementById('copyBtn'));
+            }
+
+            // Create Warning button if warnings are present
+            if (warningElements.length > 0) {
+                let warningBtn = document.createElement('button');
+                warningBtn.className = 'btn btn-warning dynamic-btn';
+                warningBtn.id = 'warningBtn';
+                warningBtn.innerHTML = '<i class="fas fa-exclamation-circle"></i> Warning';
+                warningBtn.addEventListener('click', navigateWarnings);
+                buttonsContainer.insertBefore(warningBtn, document.getElementById('copyBtn'));
+            }
+
+            // Create Resource button
+            if (resourceTypeElements.length > 0) {
+                let resourceBtn = document.createElement('button');
+                resourceBtn.className = 'btn btn-info dynamic-btn';
+                resourceBtn.id = 'resourceBtn';
+                resourceBtn.innerHTML = '<i class="fas fa-database"></i> Resource';
+                resourceBtn.addEventListener('click', navigateResources);
+                buttonsContainer.insertBefore(resourceBtn, document.getElementById('copyBtn'));
+            }
+
+            // Create resource type buttons
+            for (let resourceType in resourceTypeInstances) {
+                let btn = document.createElement('button');
+                btn.className = 'btn btn-secondary resource-btn dynamic-btn';
+                btn.innerHTML = `<i class="fas fa-tag"></i> ${resourceType}`;
+                btn.style.backgroundColor = getResourceColor(resourceType);
+                btn.style.color = '#fff';
+                btn.addEventListener('click', function() {
+                    navigateResourceType(resourceType);
+                });
+                buttonsContainer.insertBefore(btn, document.getElementById('copyBtn'));
+            }
+
+        } catch (e) {
+            outputDiv.innerHTML = '<span style="color: red; font-weight: bold;">Error parsing JSON: ' + e.message + '</span>';
+        } finally {
+            formatBtn.disabled = false;
+            loadingIndicator.innerHTML = '';
+        }
+    }, 300);
+});
+
+// Function to clean the input
+function cleanInput(input) {
+    // Remove any REST tags or non-JSON content
+    let jsonStart = input.indexOf('{');
+    let jsonEnd = input.lastIndexOf('}');
+    if (jsonStart !== -1 && jsonEnd !== -1) {
+        return input.substring(jsonStart, jsonEnd + 1);
+    } else {
+        throw new Error('No valid JSON object found.');
+    }
+}
+
+// Function to convert JSON object to HTML with syntax highlighting
+function jsonToHtml(obj, indent = 0, keyName = '') {
+    let html = '';
+    const indentStr = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(indent);
+
+    if (Array.isArray(obj)) {
+        html += '[<br>';
+        obj.forEach((item, index) => {
+            html += indentStr + '&nbsp;&nbsp;&nbsp;&nbsp;' + jsonToHtml(item, indent + 1);
+            if (index < obj.length - 1) html += ',';
+            html += '<br>';
+        });
+        html += indentStr + ']';
+    } else if (typeof obj === 'object' && obj !== null) {
+        html += '{<br>';
+        const keys = Object.keys(obj);
+        keys.forEach((key, index) => {
+            const value = obj[key];
+            const keyClass = 'key';
+            const keyHtml = indentStr + '&nbsp;&nbsp;&nbsp;&nbsp;' + `<span class="${keyClass}">"${key}"</span>: `;
+            let valueHtml = jsonToHtml(value, indent + 1, key);
+            html += keyHtml + valueHtml;
+            if (index < keys.length - 1) html += ',';
+            html += '<br>';
+        });
+        html += indentStr + '}';
+    } else {
+        let valueClass = typeof obj;
+        let valueStr = obj;
+
+        if (obj === null) {
+            valueClass = 'null';
+            valueStr = 'null';
+        } else if (typeof obj === 'string') {
+            valueStr = `"${obj}"`;
+            // Apply custom styles based on key and value
+            if (keyName === 'severity') {
+                if (obj === 'error') {
+                    valueClass = 'error';
+                } else if (obj === 'warning') {
+                    valueClass = 'warning';
+                } else if (obj === 'information') {
+                    valueClass = 'information';
+                } else {
+                    valueClass = 'string';
+                }
+            } else if (keyName === 'resourceType') {
+                valueClass = 'resourceTypeValue';
+                valueStr = `<span class="${valueClass}" data-resource-type="${obj}">${valueStr}</span>`;
+            } else {
+                valueClass = 'string';
+            }
+        }
+
+        html = `<span class="${valueClass}">${valueStr}</span>`;
+    }
+
+    return html;
+}
+
+// Function to get a color for a resource type
+function getResourceColor(resourceType) {
+    const colors = {
+        Patient: '#6f42c1',
+        Condition: '#d63384',
+        Observation: '#fd7e14',
+        Medication: '#20c997',
+        Encounter: '#0dcaf0',
+        Practitioner: '#6610f2',
+    };
+    return colors[resourceType] || '#6c757d';
+}
+
+// Function to navigate through resourceType elements
+function navigateResources() {
+    if (resourceTypeElements.length > 0) {
+        let element = resourceTypeElements[resourceIndex];
+        element.scrollIntoView({behavior: 'smooth', block: 'center'});
+        highlightElement(element);
+        resourceIndex = (resourceIndex + 1) % resourceTypeElements.length;
+    }
+}
+
+// Function to navigate through specific resource types
+function navigateResourceType(resourceType) {
+    let elements = resourceTypeInstances[resourceType];
+    if (elements && elements.length > 0) {
+        let index = resourceTypeIndices[resourceType];
+        let element = elements[index];
+        element.scrollIntoView({behavior: 'smooth', block: 'center'});
+        highlightElement(element);
+        resourceTypeIndices[resourceType] = (index + 1) % elements.length;
+    }
+}
+
+// Copy to clipboard functionality
+document.getElementById('copyBtn').addEventListener('click', function() {
+    let outputDiv = document.getElementById('output');
+    let range = document.createRange();
+    range.selectNode(outputDiv);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    try {
+        document.execCommand('copy');
+        alert('Output copied to clipboard!');
+    } catch(err) {
+        alert('Failed to copy text.');
+    }
+    window.getSelection().removeAllRanges();
+});
+
+// Function to highlight an element temporarily
+function highlightElement(element) {
+    element.style.animation = 'highlight 2s ease-in-out';
+    setTimeout(function() {
+        element.style.animation = '';
+    }, 2000);
+}
+
+// Error button click handler
+function navigateErrors() {
+    if (errorElements.length > 0) {
+        let element = errorElements[errorIndex];
+        element.scrollIntoView({behavior: 'smooth', block: 'center'});
+        highlightElement(element);
+        errorIndex = (errorIndex + 1) % errorElements.length;
+    }
+}
+
+// Warning button click handler
+function navigateWarnings() {
+    if (warningElements.length > 0) {
+        let element = warningElements[warningIndex];
+        element.scrollIntoView({behavior: 'smooth', block: 'center'});
+        highlightElement(element);
+        warningIndex = (warningIndex + 1) % warningElements.length;
+    }
+}
+</script>
+
+</body>
+</html>
