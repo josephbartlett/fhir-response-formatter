@@ -1,32 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>FHIR Response Formatter</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FHIR Response Formatter – JSON Formatter & Viewer | HL7 Tools</title>
+    <meta name="description" content="Free browser-based FHIR JSON formatter. Transform, syntax-highlight, and debug FHIR server responses, bundles, or messages—no installation required, fully local." />
+    <!-- removed obsolete meta keywords -->
+    <meta name="author" content="HL7 Tools" />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://hl7tools.io/fhir-response-formatter.html" />
+    <meta property="og:site_name" content="HL7 Tools" />
+    <meta property="og:description" content="Analyze and transform raw FHIR JSON—responses, bundles, or messages—into a human-readable format. Ideal for healthcare integration professionals." />
+    <meta property="og:url" content="https://hl7tools.io/fhir-response-formatter.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://hl7tools.io/icon.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="FHIR Response Formatter - HL7 Tools" />
+    <meta name="twitter:description" content="Understand and debug raw FHIR JSON from server responses, bundles, or messages with a structured, human-readable format." />
+    <meta name="twitter:image" content="https://hl7tools.io/icon.png" />
+    
+    <!-- Structured Data (Organization) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "HL7 Tools",
+      "url": "https://hl7tools.io",
+      "logo": "https://hl7tools.io/icon.png",
+      "description": "Secure, browser-based HL7 and FHIR tools for healthcare integration professionals.",
+      "sameAs": [
+        "https://github.com/josephbartlett"
+      ]
+    }
+    </script>
+
+    <!-- Styles & Fonts -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"> 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+
     <style>
         body {
-            background: #f2f2f2;
-            padding: 20px;
+            background-color: #f9f9f9;
             font-family: Arial, sans-serif;
+            color: #333;
         }
 
         .header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
+            background: linear-gradient(90deg, #20c997, #17a2b8);
+            color: white;
+            padding: 20px 20px;
+            margin-bottom: 0;
         }
 
-        .header i {
-            color: #20c997;
-            font-size: 1.5rem;
-            margin-right: 10px;
+        .footer {
+            background: #343a40;
+            color: white;
+            padding: 20px;
+            margin-top: 40px;
+            text-align: center;
+            font-size: 0.9rem;
         }
 
-        .header h2 {
-            margin: 0;
-            font-weight: 600;
+        .container-tool {
+            background: #ffffff;
+            padding: 20px;
+            margin-top: 30px;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
 
         label {
@@ -69,10 +109,6 @@
             gap: 10px;
         }
 
-        .btn {
-            transition: background-color 0.2s ease, box-shadow 0.2s ease;
-        }
-
         .btn:hover {
             box-shadow: 0 1px 3px rgba(0,0,0,0.15);
         }
@@ -88,7 +124,6 @@
         .information { color: #0ea5e9; font-weight: bold; }
         .resourceTypeValue { color: #9333ea; font-weight: bold; }
 
-        /* Spinner for loading feedback */
         .spinner-border {
             width: 1rem;
             height: 1rem;
@@ -96,13 +131,11 @@
             margin-left: 5px;
         }
 
-        /* Smooth scroll highlight */
         @keyframes highlight {
             0% { background-color: yellow; }
             100% { background-color: transparent; }
         }
 
-        /* Legend styling */
         .legend {
             margin-top: 20px;
             background: #ffffff;
@@ -117,326 +150,501 @@
 
         .legend-item {
             margin-bottom: 5px;
-            font-family: Arial, sans-serif;
             font-size: 0.9rem;
         }
+        
+        .usage-section {
+            margin-top: 20px;
+        }
+        .usage-section h5 {
+            margin-bottom: 10px;
+        }
+        .usage-section ul {
+            list-style-type: disc;
+            padding-left: 20px;
+        }
     </style>
+
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-RC1SH0ZHJC"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-RC1SH0ZHJC');
+    </script>
 </head>
 <body>
-
-<div class="container">
-    <div class="header">
-        <i class="fas fa-stethoscope"></i>
-        <h2>FHIR Response Formatter</h2>
-    </div>
-
-    <div class="form-group">
-        <label for="inputData">Paste your FHIR response JSON here:</label>
-        <textarea class="form-control" id="inputData" rows="10" placeholder="Paste FHIR JSON response..."></textarea>
-    </div>
-    <button id="formatBtn" class="btn btn-primary">
-        <i class="fas fa-cogs"></i> Format JSON
-    </button>
-    <span id="loadingIndicator" class="ml-2"></span>
-
-    <div class="output-header">
-        <label for="output" class="mt-4">Formatted Output:</label>
-        <div class="output-buttons" id="buttonsContainer">
-            <button class="btn btn-secondary" id="copyBtn">
-                <i class="fas fa-copy"></i> Copy
-            </button>
+    <header class="header">
+        <div class="container">
+            <h1 class="h2">FHIR Response Formatter</h1>
+            <p class="mb-0">Secure, browser-based tools for healthcare integration professionals.</p>
         </div>
-    </div>
-    <div id="output" class="mt-2"></div>
+    </header>
 
-    <!-- Legend & Guide -->
-    <div class="legend mt-4">
-        <h5>Legend & Guide</h5>
-        <div class="legend-item"><strong>Keys:</strong> <span class="key">"key"</span></div>
-        <div class="legend-item"><strong>Strings:</strong> <span class="string">"value"</span></div>
-        <div class="legend-item"><strong>Numbers:</strong> <span class="number">123</span></div>
-        <div class="legend-item"><strong>Booleans:</strong> <span class="boolean">true</span> / <span class="boolean">false</span></div>
-        <div class="legend-item"><strong>null:</strong> <span class="null">null</span></div>
-        <div class="legend-item"><strong>Resource Types:</strong> <span class="resourceTypeValue">"Patient"</span></div>
-        <div class="legend-item"><strong>Errors:</strong> <span class="error">"error"</span></div>
-        <div class="legend-item"><strong>Warnings:</strong> <span class="warning">"warning"</span></div>
-        <div class="legend-item"><strong>Information:</strong> <span class="information">"information"</span></div>
-    </div>
-</div>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="https://hl7tools.io/">HL7 Tools</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" 
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item"><a class="nav-link" href="https://hl7tools.io/#hl7-analyzer">HL7 Message Analyzer</a></li>
+                    <li class="nav-item"><a class="nav-link" href="https://hl7tools.io/#fhir-formatter">FHIR Response Formatter</a></li>
+                    <li class="nav-item"><a class="nav-link" href="https://hl7tools.io/#privacy">Privacy Policy</a></li>
+                    <li class="nav-item"><a class="nav-link" href="https://hl7tools.io/#contact">Contact</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
 
-<!-- Bootstrap JS and dependencies -->
-<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <main class="container container-tool">
+        <div class="mb-4">
+            <h2 class="h4">FHIR Response Formatter</h2>
+            <p>
+                This tool helps you understand and debug FHIR data by converting raw JSON input into a human-readable, syntactically highlighted format. 
+                While originally designed for FHIR server responses, it can also handle full FHIR bundles or standalone FHIR messages, making it an all-in-one solution for examining and interpreting FHIR resources.
+            </p>
+            <p>Whether you’re a developer, implementer, or integration specialist, the FHIR Response Formatter streamlines your workflow by presenting structured data that’s easy to navigate and explore.</p>
+            
+            <p>
+                The tool is free and open source. Contribute or review the code on 
+                <a href="https://github.com/josephbartlett/fhir-response-formatter" target="_blank" rel="noopener">
+                    <i class="fab fa-github"></i> GitHub
+                </a>.
+            </p>
+        </div>
 
-<script>
-// Variables to keep track of elements
-let errorElements = [];
-let warningElements = [];
-let resourceTypeElements = [];
-let errorIndex = 0;
-let warningIndex = 0;
-let resourceIndex = 0;
-let resourceTypeInstances = {};
-let resourceTypeIndices = {};
+        <div class="usage-section">
+            <h5>Usage Examples</h5>
+            <ul>
+                <li><strong>FHIR Server Responses:</strong> Paste the response from a FHIR API endpoint to inspect returned resources and identify errors or warnings.</li>
+                <li><strong>Full FHIR Bundles:</strong> Analyze an entire FHIR bundle to understand its composition and navigate between different resource types.</li>
+                <li><strong>Standalone FHIR Messages:</strong> Submit a single FHIR resource or message for a clear breakdown of its structure and content.</li>
+            </ul>
+        </div>
 
-const formatBtn = document.getElementById('formatBtn');
-const loadingIndicator = document.getElementById('loadingIndicator');
+        <div class="form-group mt-4">
+            <label for="inputData">Paste your FHIR JSON (response, bundle, or message) here:</label>
+            <textarea class="form-control" id="inputData" rows="10" placeholder="Paste FHIR JSON..."></textarea>
+        </div>
+        <button id="formatBtn" class="btn btn-primary">
+            <i class="fas fa-cogs"></i> Format JSON
+        </button>
+        <span id="loadingIndicator" class="ml-2"></span>
 
-formatBtn.addEventListener('click', function() {
-    const input = document.getElementById('inputData').value;
-    const outputDiv = document.getElementById('output');
-    const buttonsContainer = document.getElementById('buttonsContainer');
-    outputDiv.innerHTML = ''; // Clear previous output
+        <div class="output-header">
+            <label for="output" class="mt-4">Formatted Output:</label>
+            <div class="output-buttons" id="buttonsContainer">
+                <button class="btn btn-secondary" id="copyBtn">
+                    <i class="fas fa-copy"></i> Copy
+                </button>
+            </div>
+        </div>
+        <div id="output" class="mt-2"></div>
 
-    // Remove previous buttons except copy button
-    const buttonsToRemove = buttonsContainer.querySelectorAll('.dynamic-btn');
-    buttonsToRemove.forEach(btn => btn.remove());
+        <!-- Legend & Guide -->
+        <div class="legend mt-4">
+            <h5>Legend & Guide</h5>
+            <div class="legend-item"><strong>Keys:</strong> <span class="key">"key"</span></div>
+            <div class="legend-item"><strong>Strings:</strong> <span class="string">"value"</span></div>
+            <div class="legend-item"><strong>Numbers:</strong> <span class="number">123</span></div>
+            <div class="legend-item"><strong>Booleans:</strong> <span class="boolean">true</span> / <span class="boolean">false</span></div>
+            <div class="legend-item"><strong>null:</strong> <span class="null">null</span></div>
+            <div class="legend-item"><strong>Resource Types:</strong> <span class="resourceTypeValue">"Patient"</span> (and others)</div>
+            <div class="legend-item"><strong>Errors:</strong> <span class="error">"error"</span></div>
+            <div class="legend-item"><strong>Warnings:</strong> <span class="warning">"warning"</span></div>
+            <div class="legend-item"><strong>Information:</strong> <span class="information">"information"</span></div>
+        </div>
 
-    // Reset elements arrays and indices
-    errorElements = [];
-    warningElements = [];
-    resourceTypeElements = [];
-    errorIndex = 0;
-    warningIndex = 0;
-    resourceIndex = 0;
-    resourceTypeInstances = {};
-    resourceTypeIndices = {};
+        <section class="my-5">
+            <h5>Additional Resources</h5>
+            <p>For more detailed information and official documentation on FHIR and HL7 standards, explore the following resources:</p>
+            <ul>
+                <li><a href="https://www.hl7.org/fhir/" target="_blank" rel="noopener">HL7 FHIR Official Homepage</a></li>
+                <li><a href="https://www.hl7.org/fhir/resourcelist.html" target="_blank" rel="noopener">FHIR Resource List</a></li>
+                <li><a href="https://www.hl7.org/implement/standards/fhir/" target="_blank" rel="noopener">FHIR Implementation Guides</a></li>
+            </ul>
+        </section>
+    </main>
 
-    // Show loading spinner
-    formatBtn.disabled = true;
-    loadingIndicator.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="sr-only">Loading...</span></div>';
+    <footer class="footer">
+        <p>&copy; 2024 HL7Tools.io. All rights reserved.</p>
+        <p>Free and open source under the <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener" style="color:#17a2b8;">MIT License</a>.</p>
+    </footer>
 
-    setTimeout(() => {
-        try {
-            let cleanedInput = cleanInput(input);
-            let jsonData = JSON.parse(cleanedInput);
-            let prettyJson = jsonToHtml(jsonData);
-            outputDiv.innerHTML = prettyJson;
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
-            // Collect error and warning elements
-            errorElements = outputDiv.querySelectorAll('.error');
-            warningElements = outputDiv.querySelectorAll('.warning');
+    <script>
 
-            // Collect all resourceType elements
-            let resourceTypeSpans = outputDiv.querySelectorAll('.resourceTypeValue');
-            resourceTypeSpans.forEach(span => {
-                let resourceType = span.getAttribute('data-resource-type');
-                resourceTypeElements.push(span);
+    let errorElements = [];
+    let warningElements = [];
+    let resourceTypeElements = [];
+    let errorIndex = 0;
+    let warningIndex = 0;
+    let resourceIndex = 0;
+    let resourceTypeInstances = {};
+    let resourceTypeIndices = {};
 
-                // For individual resource type buttons
-                if (resourceType) {
-                    if (!resourceTypeInstances[resourceType]) {
-                        resourceTypeInstances[resourceType] = [];
-                        resourceTypeIndices[resourceType] = 0;
+    const formatBtn = document.getElementById('formatBtn');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+
+    formatBtn.addEventListener('click', function() {
+        const input = document.getElementById('inputData').value;
+        const outputDiv = document.getElementById('output');
+        const buttonsContainer = document.getElementById('buttonsContainer');
+        outputDiv.innerHTML = ''; // Clear previous output
+
+        // Remove previous dynamic buttons except the copy button
+        const buttonsToRemove = buttonsContainer.querySelectorAll('.dynamic-btn');
+        buttonsToRemove.forEach(btn => btn.remove());
+
+        // Reset arrays and indices
+        errorElements = [];
+        warningElements = [];
+        resourceTypeElements = [];
+        errorIndex = 0;
+        warningIndex = 0;
+        resourceIndex = 0;
+        resourceTypeInstances = {};
+        resourceTypeIndices = {};
+
+        // Show loading spinner
+        formatBtn.disabled = true;
+        loadingIndicator.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="sr-only">Loading...</span></div>';
+
+        setTimeout(() => {
+            try {
+                // Extract the JSON object from the user input and sanitise any
+                // unescaped control characters that commonly appear when
+                // copying from log files or terminals (e.g. raw line-breaks
+                // within a string value). These characters are illegal inside
+                // JSON strings and lead to "Bad control character in string
+                // literal" errors even though the payload appears valid to the
+                // user. Prior to the last update the formatter silently
+                // escaped these characters; the explicit clean-up step below
+                // restores that behaviour.
+
+                let cleanedInput = cleanInput(input);
+                cleanedInput = escapeControlCharsInStrings(cleanedInput);
+                let jsonData = JSON.parse(cleanedInput);
+                let prettyJson = jsonToHtml(jsonData);
+                outputDiv.innerHTML = prettyJson;
+
+                // Collect error and warning elements
+                errorElements = outputDiv.querySelectorAll('.error');
+                warningElements = outputDiv.querySelectorAll('.warning');
+
+                // Collect all resourceType elements
+                let resourceTypeSpans = outputDiv.querySelectorAll('.resourceTypeValue');
+                resourceTypeSpans.forEach(span => {
+                    let resourceType = span.getAttribute('data-resource-type');
+                    resourceTypeElements.push(span);
+
+                    // For individual resource type buttons
+                    if (resourceType) {
+                        if (!resourceTypeInstances[resourceType]) {
+                            resourceTypeInstances[resourceType] = [];
+                            resourceTypeIndices[resourceType] = 0;
+                        }
+                        resourceTypeInstances[resourceType].push(span);
                     }
-                    resourceTypeInstances[resourceType].push(span);
-                }
-            });
-
-            // Create Error button if errors are present
-            if (errorElements.length > 0) {
-                let errorBtn = document.createElement('button');
-                errorBtn.className = 'btn btn-danger dynamic-btn';
-                errorBtn.id = 'errorBtn';
-                errorBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error';
-                errorBtn.addEventListener('click', navigateErrors);
-                buttonsContainer.insertBefore(errorBtn, document.getElementById('copyBtn'));
-            }
-
-            // Create Warning button if warnings are present
-            if (warningElements.length > 0) {
-                let warningBtn = document.createElement('button');
-                warningBtn.className = 'btn btn-warning dynamic-btn';
-                warningBtn.id = 'warningBtn';
-                warningBtn.innerHTML = '<i class="fas fa-exclamation-circle"></i> Warning';
-                warningBtn.addEventListener('click', navigateWarnings);
-                buttonsContainer.insertBefore(warningBtn, document.getElementById('copyBtn'));
-            }
-
-            // Create Resource button
-            if (resourceTypeElements.length > 0) {
-                let resourceBtn = document.createElement('button');
-                resourceBtn.className = 'btn btn-info dynamic-btn';
-                resourceBtn.id = 'resourceBtn';
-                resourceBtn.innerHTML = '<i class="fas fa-database"></i> Resource';
-                resourceBtn.addEventListener('click', navigateResources);
-                buttonsContainer.insertBefore(resourceBtn, document.getElementById('copyBtn'));
-            }
-
-            // Create resource type buttons
-            for (let resourceType in resourceTypeInstances) {
-                let btn = document.createElement('button');
-                btn.className = 'btn btn-secondary resource-btn dynamic-btn';
-                btn.innerHTML = `<i class="fas fa-tag"></i> ${resourceType}`;
-                btn.style.backgroundColor = getResourceColor(resourceType);
-                btn.style.color = '#fff';
-                btn.addEventListener('click', function() {
-                    navigateResourceType(resourceType);
                 });
-                buttonsContainer.insertBefore(btn, document.getElementById('copyBtn'));
+
+                // Create Error button if errors are present
+                if (errorElements.length > 0) {
+                    let errorBtn = document.createElement('button');
+                    errorBtn.className = 'btn btn-danger dynamic-btn';
+                    errorBtn.id = 'errorBtn';
+                    errorBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error';
+                    errorBtn.addEventListener('click', navigateErrors);
+                    buttonsContainer.insertBefore(errorBtn, document.getElementById('copyBtn'));
+                }
+
+                // Create Warning button if warnings are present
+                if (warningElements.length > 0) {
+                    let warningBtn = document.createElement('button');
+                    warningBtn.className = 'btn btn-warning dynamic-btn';
+                    warningBtn.id = 'warningBtn';
+                    warningBtn.innerHTML = '<i class="fas fa-exclamation-circle"></i> Warning';
+                    warningBtn.addEventListener('click', navigateWarnings);
+                    buttonsContainer.insertBefore(warningBtn, document.getElementById('copyBtn'));
+                }
+
+                // Create Resource button if resource elements are present
+                if (resourceTypeElements.length > 0) {
+                    let resourceBtn = document.createElement('button');
+                    resourceBtn.className = 'btn btn-info dynamic-btn';
+                    resourceBtn.id = 'resourceBtn';
+                    resourceBtn.innerHTML = '<i class="fas fa-database"></i> Resource';
+                    resourceBtn.addEventListener('click', navigateResources);
+                    buttonsContainer.insertBefore(resourceBtn, document.getElementById('copyBtn'));
+                }
+
+                // Create resource type buttons
+                for (let resourceType in resourceTypeInstances) {
+                    let btn = document.createElement('button');
+                    btn.className = 'btn btn-secondary resource-btn dynamic-btn';
+                    btn.innerHTML = `<i class="fas fa-tag"></i> ${resourceType}`;
+                    btn.style.backgroundColor = getResourceColor(resourceType);
+                    btn.style.color = '#fff';
+                    btn.addEventListener('click', function() {
+                        navigateResourceType(resourceType);
+                    });
+                    buttonsContainer.insertBefore(btn, document.getElementById('copyBtn'));
+                }
+
+            } catch (e) {
+                outputDiv.innerHTML = '<span style="color: red; font-weight: bold;">Error parsing JSON: ' + e.message + '</span>';
+            } finally {
+                formatBtn.disabled = false;
+                loadingIndicator.innerHTML = '';
+            }
+        }, 300);
+    });
+
+    // Extracts the first complete top-level JSON object found in the text.
+    // The algorithm is brace-aware and ignores braces that appear inside
+    // string literals, so it is resilient to occurrences like "<div>{ }</div>"
+    // embedded inside FHIR narrative.
+    function cleanInput(input) {
+        const start = input.indexOf('{');
+        if (start === -1) {
+            throw new Error('No opening brace “{” found – is this valid JSON?');
+        }
+
+        let inString = false;
+        let backslashCount = 0;
+        let depth = 0;
+
+        for (let i = start; i < input.length; i++) {
+            const ch = input[i];
+
+            if (ch === '"') {
+                // Detect escaped quotes (same technique as in escape function)
+                backslashCount = 0;
+                let j = i - 1;
+                while (j >= 0 && input[j] === '\\') {
+                    backslashCount++;
+                    j--;
+                }
+                if (backslashCount % 2 === 0) {
+                    inString = !inString;
+                }
             }
 
-        } catch (e) {
-            outputDiv.innerHTML = '<span style="color: red; font-weight: bold;">Error parsing JSON: ' + e.message + '</span>';
-        } finally {
-            formatBtn.disabled = false;
-            loadingIndicator.innerHTML = '';
+            if (!inString) {
+                if (ch === '{') {
+                    depth++;
+                } else if (ch === '}') {
+                    depth--;
+                    if (depth === 0) {
+                        // Reached the matching closing brace for the top-level object
+                        return input.substring(start, i + 1);
+                    }
+                }
+            }
         }
-    }, 300);
-});
 
-// Function to clean the input
-function cleanInput(input) {
-    // Remove any REST tags or non-JSON content
-    let jsonStart = input.indexOf('{');
-    let jsonEnd = input.lastIndexOf('}');
-    if (jsonStart !== -1 && jsonEnd !== -1) {
-        return input.substring(jsonStart, jsonEnd + 1);
-    } else {
-        throw new Error('No valid JSON object found.');
+        throw new Error('No matching closing brace found for JSON object.');
     }
-}
 
-// Function to convert JSON object to HTML with syntax highlighting
-function jsonToHtml(obj, indent = 0, keyName = '') {
-    let html = '';
-    const indentStr = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(indent);
+    /*
+     * Escapes raw control characters (newline, carriage return, tab) that
+     * appear inside JSON string literals. Many FHIR servers include formatted
+     * XML fragments or human-readable messages that span multiple lines. When
+     * copied directly, those line-breaks are inserted as literal control
+     * characters, which are illegal inside a JSON string and cause the native
+     * JSON.parse implementation to throw:
+     *   "Bad control character in string literal".
+     *
+     * The algorithm walks the input one character at a time, keeping track of
+     * whether we are currently inside a quoted string (and whether the quote
+     * is escaped). Any offending characters encountered while inside a string
+     * are replaced with their escaped equivalents (\n, \r, \t). Characters
+     * outside of strings are left untouched because control characters are
+     * valid JSON whitespace there.
+     */
+    function escapeControlCharsInStrings(str) {
+        let result = '';
+        let inString = false;
+        let backslashCount = 0;
 
-    if (Array.isArray(obj)) {
-        html += '[<br>';
-        obj.forEach((item, index) => {
-            html += indentStr + '&nbsp;&nbsp;&nbsp;&nbsp;' + jsonToHtml(item, indent + 1);
-            if (index < obj.length - 1) html += ',';
-            html += '<br>';
-        });
-        html += indentStr + ']';
-    } else if (typeof obj === 'object' && obj !== null) {
-        html += '{<br>';
-        const keys = Object.keys(obj);
-        keys.forEach((key, index) => {
-            const value = obj[key];
-            const keyClass = 'key';
-            const keyHtml = indentStr + '&nbsp;&nbsp;&nbsp;&nbsp;' + `<span class="${keyClass}">"${key}"</span>: `;
-            let valueHtml = jsonToHtml(value, indent + 1, key);
-            html += keyHtml + valueHtml;
-            if (index < keys.length - 1) html += ',';
-            html += '<br>';
-        });
-        html += indentStr + '}';
-    } else {
-        let valueClass = typeof obj;
-        let valueStr = obj;
+        for (let i = 0; i < str.length; i++) {
+            const ch = str[i];
 
-        if (obj === null) {
-            valueClass = 'null';
-            valueStr = 'null';
-        } else if (typeof obj === 'string') {
-            valueStr = `"${obj}"`;
-            // Apply custom styles based on key and value
-            if (keyName === 'severity') {
-                if (obj === 'error') {
-                    valueClass = 'error';
-                } else if (obj === 'warning') {
-                    valueClass = 'warning';
-                } else if (obj === 'information') {
-                    valueClass = 'information';
+            if (ch === '"') {
+                // Count consecutive backslashes immediately before this quote
+                backslashCount = 0;
+                let j = i - 1;
+                while (j >= 0 && str[j] === '\\') {
+                    backslashCount++;
+                    j--;
+                }
+
+                if (backslashCount % 2 === 0) {
+                    // Quote is not escaped – toggle inString flag
+                    inString = !inString;
+                }
+                result += ch;
+                continue;
+            }
+
+            if (inString) {
+                switch (ch) {
+                    case '\n':
+                        result += '\\n';
+                        continue;
+                    case '\r':
+                        result += '\\r';
+                        continue;
+                    case '\t':
+                        result += '\\t';
+                        continue;
+                    default:
+                        break;
+                }
+            }
+
+            result += ch;
+        }
+
+        return result;
+    }
+
+    function jsonToHtml(obj, indent = 0, keyName = '') {
+        let html = '';
+        const indentStr = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(indent);
+
+        if (Array.isArray(obj)) {
+            html += '[<br>';
+            obj.forEach((item, index) => {
+                html += indentStr + '&nbsp;&nbsp;&nbsp;&nbsp;' + jsonToHtml(item, indent + 1);
+                if (index < obj.length - 1) html += ',';
+                html += '<br>';
+            });
+            html += indentStr + ']';
+        } else if (typeof obj === 'object' && obj !== null) {
+            html += '{<br>';
+            const keys = Object.keys(obj);
+            keys.forEach((key, index) => {
+                const value = obj[key];
+                const keyClass = 'key';
+                const keyHtml = indentStr + '&nbsp;&nbsp;&nbsp;&nbsp;' + `<span class="${keyClass}">"${key}"</span>: `;
+                let valueHtml = jsonToHtml(value, indent + 1, key);
+                html += keyHtml + valueHtml;
+                if (index < keys.length - 1) html += ',';
+                html += '<br>';
+            });
+            html += indentStr + '}';
+        } else {
+            let valueClass = typeof obj;
+            let valueStr = obj;
+
+            if (obj === null) {
+                valueClass = 'null';
+                valueStr = 'null';
+            } else if (typeof obj === 'string') {
+                valueStr = `"${obj}"`;
+                if (keyName === 'severity') {
+                    if (obj === 'error') {
+                        valueClass = 'error';
+                    } else if (obj === 'warning') {
+                        valueClass = 'warning';
+                    } else if (obj === 'information') {
+                        valueClass = 'information';
+                    } else {
+                        valueClass = 'string';
+                    }
+                } else if (keyName === 'resourceType') {
+                    valueClass = 'resourceTypeValue';
+                    valueStr = `<span class="${valueClass}" data-resource-type="${obj}">${valueStr}</span>`;
                 } else {
                     valueClass = 'string';
                 }
-            } else if (keyName === 'resourceType') {
-                valueClass = 'resourceTypeValue';
-                valueStr = `<span class="${valueClass}" data-resource-type="${obj}">${valueStr}</span>`;
-            } else {
-                valueClass = 'string';
             }
+
+            html = `<span class="${valueClass}">${valueStr}</span>`;
         }
 
-        html = `<span class="${valueClass}">${valueStr}</span>`;
+        return html;
     }
 
-    return html;
-}
-
-// Function to get a color for a resource type
-function getResourceColor(resourceType) {
-    const colors = {
-        Patient: '#6f42c1',
-        Condition: '#d63384',
-        Observation: '#fd7e14',
-        Medication: '#20c997',
-        Encounter: '#0dcaf0',
-        Practitioner: '#6610f2',
-    };
-    return colors[resourceType] || '#6c757d';
-}
-
-// Function to navigate through resourceType elements
-function navigateResources() {
-    if (resourceTypeElements.length > 0) {
-        let element = resourceTypeElements[resourceIndex];
-        element.scrollIntoView({behavior: 'smooth', block: 'center'});
-        highlightElement(element);
-        resourceIndex = (resourceIndex + 1) % resourceTypeElements.length;
+    function getResourceColor(resourceType) {
+        const colors = {
+            Patient: '#6f42c1',
+            Condition: '#d63384',
+            Observation: '#fd7e14',
+            Medication: '#20c997',
+            Encounter: '#0dcaf0',
+            Practitioner: '#6610f2',
+        };
+        return colors[resourceType] || '#6c757d';
     }
-}
 
-// Function to navigate through specific resource types
-function navigateResourceType(resourceType) {
-    let elements = resourceTypeInstances[resourceType];
-    if (elements && elements.length > 0) {
-        let index = resourceTypeIndices[resourceType];
-        let element = elements[index];
-        element.scrollIntoView({behavior: 'smooth', block: 'center'});
-        highlightElement(element);
-        resourceTypeIndices[resourceType] = (index + 1) % elements.length;
+    function navigateResources() {
+        if (resourceTypeElements.length > 0) {
+            let element = resourceTypeElements[resourceIndex];
+            element.scrollIntoView({behavior: 'smooth', block: 'center'});
+            highlightElement(element);
+            resourceIndex = (resourceIndex + 1) % resourceTypeElements.length;
+        }
     }
-}
 
-// Copy to clipboard functionality
-document.getElementById('copyBtn').addEventListener('click', function() {
-    let outputDiv = document.getElementById('output');
-    let range = document.createRange();
-    range.selectNode(outputDiv);
-    window.getSelection().removeAllRanges();
-    window.getSelection().addRange(range);
-    try {
-        document.execCommand('copy');
-        alert('Output copied to clipboard!');
-    } catch(err) {
-        alert('Failed to copy text.');
+    function navigateResourceType(resourceType) {
+        let elements = resourceTypeInstances[resourceType];
+        if (elements && elements.length > 0) {
+            let index = resourceTypeIndices[resourceType];
+            let element = elements[index];
+            element.scrollIntoView({behavior: 'smooth', block: 'center'});
+            highlightElement(element);
+            resourceTypeIndices[resourceType] = (index + 1) % elements.length;
+        }
     }
-    window.getSelection().removeAllRanges();
-});
 
-// Function to highlight an element temporarily
-function highlightElement(element) {
-    element.style.animation = 'highlight 2s ease-in-out';
-    setTimeout(function() {
-        element.style.animation = '';
-    }, 2000);
-}
+    document.getElementById('copyBtn').addEventListener('click', function() {
+        let outputDiv = document.getElementById('output');
+        let range = document.createRange();
+        range.selectNode(outputDiv);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        try {
+            document.execCommand('copy');
+            alert('Output copied to clipboard!');
+        } catch(err) {
+            alert('Failed to copy text.');
+        }
+        window.getSelection().removeAllRanges();
+    });
 
-// Error button click handler
-function navigateErrors() {
-    if (errorElements.length > 0) {
-        let element = errorElements[errorIndex];
-        element.scrollIntoView({behavior: 'smooth', block: 'center'});
-        highlightElement(element);
-        errorIndex = (errorIndex + 1) % errorElements.length;
+    function highlightElement(element) {
+        element.style.animation = 'highlight 2s ease-in-out';
+        setTimeout(function() {
+            element.style.animation = '';
+        }, 2000);
     }
-}
 
-// Warning button click handler
-function navigateWarnings() {
-    if (warningElements.length > 0) {
-        let element = warningElements[warningIndex];
-        element.scrollIntoView({behavior: 'smooth', block: 'center'});
-        highlightElement(element);
-        warningIndex = (warningIndex + 1) % warningElements.length;
+    function navigateErrors() {
+        if (errorElements.length > 0) {
+            let element = errorElements[errorIndex];
+            element.scrollIntoView({behavior: 'smooth', block: 'center'});
+            highlightElement(element);
+            errorIndex = (errorIndex + 1) % errorElements.length;
+        }
     }
-}
-</script>
 
+    function navigateWarnings() {
+        if (warningElements.length > 0) {
+            let element = warningElements[warningIndex];
+            element.scrollIntoView({behavior: 'smooth', block: 'center'});
+            highlightElement(element);
+            warningIndex = (warningIndex + 1) % warningElements.length;
+        }
+    }
+    </script>
 </body>
 </html>
